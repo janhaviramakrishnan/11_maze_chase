@@ -95,27 +95,22 @@ class Enemy:
         self.timer = 0
         self.move_interval = 20
 
-        # Power pellet
+        # Power pellet state
         self.frozen = False
 
     def update(self, walls, player, rows, cols):
 
-        # -----------------------------------------
-        # Frozen enemy does nothing
-        # -----------------------------------------
-
+        # Frozen enemies do nothing
         if self.frozen:
             return
 
         from game.maze import bfs
 
-        # -----------------------------------------
-        # BFS is calculated on every update
-        # -----------------------------------------
-
+        # Get player's current maze cell
         pr = player.rect.centery // CELL
         pc = player.rect.centerx // CELL
 
+        # Calculate BFS on every update
         step = bfs(
             walls,
             (self.r, self.c),
@@ -124,10 +119,7 @@ class Enemy:
             cols
         )
 
-        # -----------------------------------------
-        # Movement interval
-        # -----------------------------------------
-
+        # Enemy movement timing
         self.timer += 1
 
         if self.timer >= self.move_interval:
@@ -151,7 +143,7 @@ class Enemy:
 
     def draw(self, screen):
 
-        # Frozen enemies are blue
+        # Frozen enemies become blue
         if self.frozen:
             color = (80, 170, 255)
         else:
@@ -184,10 +176,7 @@ class Enemy:
                 2
             )
 
-        # -----------------------------------------
         # Frozen indicator
-        # -----------------------------------------
-
         if self.frozen:
 
             font = pygame.font.SysFont(

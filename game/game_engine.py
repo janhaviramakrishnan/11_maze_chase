@@ -76,14 +76,8 @@ class GameEngine:
         )
 
         # -----------------------------------------
-        # POWER PELLET
+        # Power pellet
         # -----------------------------------------
-        #
-        # IMPORTANT:
-        # Put it somewhere different from EXIT.
-        #
-        # This is row 5, column 2.
-        #
 
         pellet_row = 5
         pellet_col = 2
@@ -97,7 +91,7 @@ class GameEngine:
 
         self.pellet_active = True
 
-        # 300-frame freeze timer
+        # 300-frame freeze countdown
         self.freeze_timer = 0
 
         # -----------------------------------------
@@ -108,6 +102,15 @@ class GameEngine:
         self.won = False
 
         # -----------------------------------------
+        # TASK 4: SURVIVAL SCORE
+        # -----------------------------------------
+
+        # Score starts at zero.
+        # It increases by 1 every frame
+        # while the player is alive.
+        self.score = 0
+
+        # -----------------------------------------
         # Difficulty ramp
         # -----------------------------------------
 
@@ -116,6 +119,10 @@ class GameEngine:
         self.speed_tier = 1
 
         self.enemy_move_interval = 20
+
+    # =================================================
+    # EVENTS
+    # =================================================
 
     def handle_events(self):
 
@@ -145,8 +152,9 @@ class GameEngine:
         # Every 15 seconds
         elapsed_periods = elapsed_time // 15000
 
-        # Reduce by 2 every 15 seconds.
-        # Minimum = 5.
+        # Reduce enemy interval by 2
+        # every 15 seconds.
+        # Minimum interval is 5.
         new_interval = max(
             5,
             20 - elapsed_periods * 2
@@ -162,6 +170,7 @@ class GameEngine:
 
             self.speed_tier = new_speed_tier
 
+            # Apply new interval to every enemy
             for enemy in self.enemies:
 
                 enemy.move_interval = (
@@ -185,15 +194,13 @@ class GameEngine:
             )
         ):
 
-            print("POWER PELLET COLLECTED!")
-
             # Remove pellet
             self.pellet_active = False
 
             # Start 300-frame countdown
             self.freeze_timer = 300
 
-            # Freeze ALL enemies
+            # Freeze all enemies
             for enemy in self.enemies:
 
                 enemy.frozen = True
@@ -206,16 +213,14 @@ class GameEngine:
 
             self.freeze_timer -= 1
 
-            # Countdown finished
             if self.freeze_timer <= 0:
 
                 self.freeze_timer = 0
 
+                # Unfreeze all enemies
                 for enemy in self.enemies:
 
                     enemy.frozen = False
-
-                print("ENEMIES UNFROZEN!")
 
     # =================================================
     # UPDATE
@@ -223,14 +228,28 @@ class GameEngine:
 
     def update(self):
 
+        # If game is over, don't update the score.
         if self.caught or self.won:
             return
 
+        # -----------------------------------------
+        # TASK 4: SURVIVAL SCORE
+        # -----------------------------------------
+        #
+        # Player is alive at this point,
+        # so add one point for this frame.
+        #
+
+        self.score += 1
+
+        # -----------------------------------------
         # Difficulty
+        # -----------------------------------------
+
         self.update_difficulty()
 
         # -----------------------------------------
-        # Player
+        # Player movement
         # -----------------------------------------
 
         keys = pygame.key.get_pressed()
@@ -294,7 +313,7 @@ class GameEngine:
         wall_color = (50, 40, 60)
 
         # -----------------------------------------
-        # Maze
+        # Draw maze
         # -----------------------------------------
 
         for r in range(ROWS):
@@ -306,6 +325,7 @@ class GameEngine:
 
                 w = self.walls[r][c]
 
+                # Top
                 if w[0]:
 
                     pygame.draw.line(
@@ -316,6 +336,7 @@ class GameEngine:
                         3
                     )
 
+                # Bottom
                 if w[1]:
 
                     pygame.draw.line(
@@ -326,6 +347,7 @@ class GameEngine:
                         3
                     )
 
+                # Right
                 if w[2]:
 
                     pygame.draw.line(
@@ -336,6 +358,7 @@ class GameEngine:
                         3
                     )
 
+                # Left
                 if w[3]:
 
                     pygame.draw.line(
@@ -419,12 +442,35 @@ class GameEngine:
             hud
         )
 
-        # Speed tier
+        # -----------------------------------------
+        # TASK 4: SURVIVAL TIME
+        # -----------------------------------------
+
+        survived_seconds = self.score // 60
+
+        survived_text = (
+            f"Survived: "
+            f"{survived_seconds}s"
+        )
+
+        survived_label = self.font.render(
+            survived_text,
+            True,
+            (255, 255, 255)
+        )
+
+        self.screen.blit(
+            survived_label,
+            (8, ROWS * CELL + 4)
+        )
+
+        # -----------------------------------------
+        # Enemy speed tier
+        # -----------------------------------------
+
         speed_text = (
-            f"Enemy Speed: Tier "
-            f"{self.speed_tier} "
-            f"(Interval: "
-            f"{self.enemy_move_interval})"
+            f"Speed: Tier "
+            f"{self.speed_tier}"
         )
 
         speed_label = self.font.render(
@@ -436,17 +482,20 @@ class GameEngine:
         self.screen.blit(
             speed_label,
             (
-                8,
+                150,
                 ROWS * CELL + 4
             )
         )
 
+        # -----------------------------------------
         # Freeze status
+        # -----------------------------------------
+
         if self.freeze_timer > 0:
 
             freeze_text = (
                 f"FROZEN: "
-                f"{self.freeze_timer} frames"
+                f"{self.freeze_timer}"
             )
 
             freeze_label = self.font.render(
@@ -458,30 +507,15 @@ class GameEngine:
             self.screen.blit(
                 freeze_label,
                 (
-                    8,
-                    ROWS * CELL + 27
+                    300,
+                    ROWS * CELL + 4
                 )
             )
 
-        else:
-
-            freeze_label = self.font.render(
-                "Power Pellet: Available"
-                if self.pellet_active
-                else "Power Pellet: Used",
-                True,
-                (200, 200, 200)
-            )
-
-            self.screen.blit(
-                freeze_label,
-                (
-                    8,
-                    ROWS * CELL + 27
-                )
-            )
-
+        # -----------------------------------------
         # Restart
+        # -----------------------------------------
+
         restart_label = self.font.render(
             "R = Restart",
             True,
@@ -497,6 +531,38 @@ class GameEngine:
                 ROWS * CELL + 27
             )
         )
+
+        # -----------------------------------------
+        # Pellet status
+        # -----------------------------------------
+
+        if self.freeze_timer <= 0:
+
+            if self.pellet_active:
+
+                pellet_text = (
+                    "Power Pellet: Available"
+                )
+
+            else:
+
+                pellet_text = (
+                    "Power Pellet: Used"
+                )
+
+            pellet_label = self.font.render(
+                pellet_text,
+                True,
+                (200, 200, 200)
+            )
+
+            self.screen.blit(
+                pellet_label,
+                (
+                    8,
+                    ROWS * CELL + 27
+                )
+            )
 
         # -----------------------------------------
         # GAME OVER
@@ -519,11 +585,12 @@ class GameEngine:
         pygame.display.flip()
 
     # =================================================
-    # OVERLAY
+    # GAME OVER OVERLAY
     # =================================================
 
     def _overlay(self, text, color):
 
+        # Dark overlay
         surf = pygame.Surface(
             (
                 WIDTH,
@@ -541,11 +608,54 @@ class GameEngine:
             (0, 0)
         )
 
+        # -----------------------------------------
+        # Game over text
+        # -----------------------------------------
+
         msg = self.big_font.render(
             text,
             True,
             color
         )
+
+        self.screen.blit(
+            msg,
+            (
+                WIDTH // 2
+                - msg.get_width() // 2,
+                ROWS * CELL // 2 - 55
+            )
+        )
+
+        # -----------------------------------------
+        # TASK 4: FINAL SCORE
+        # -----------------------------------------
+
+        final_score = self.score // 60
+
+        score_text = (
+            f"Survived: "
+            f"{final_score}s"
+        )
+
+        score_label = self.font.render(
+            score_text,
+            True,
+            (255, 255, 255)
+        )
+
+        self.screen.blit(
+            score_label,
+            (
+                WIDTH // 2
+                - score_label.get_width() // 2,
+                ROWS * CELL // 2
+            )
+        )
+
+        # -----------------------------------------
+        # Restart instruction
+        # -----------------------------------------
 
         sub = self.font.render(
             "Press R to Restart",
@@ -554,20 +664,11 @@ class GameEngine:
         )
 
         self.screen.blit(
-            msg,
-            (
-                WIDTH // 2
-                - msg.get_width() // 2,
-                ROWS * CELL // 2 - 30
-            )
-        )
-
-        self.screen.blit(
             sub,
             (
                 WIDTH // 2
                 - sub.get_width() // 2,
-                ROWS * CELL // 2 + 20
+                ROWS * CELL // 2 + 35
             )
         )
 
