@@ -9,8 +9,15 @@ class Player:
     def __init__(self, r, c):
         self.r, self.c = r, c
 
-        cx, cy = c * CELL + CELL // 2, r * CELL + CELL // 2
-        self.rect = pygame.Rect(cx - 10, cy - 10, 20, 20)
+        cx = c * CELL + CELL // 2
+        cy = r * CELL + CELL // 2
+
+        self.rect = pygame.Rect(
+            cx - 10,
+            cy - 10,
+            20,
+            20
+        )
 
         self.color = (60, 120, 220)
 
@@ -49,7 +56,8 @@ class Player:
             (rect.right - 1, rect.bottom - 1)
         ]:
 
-            cr, cc = py // CELL, px // CELL
+            cr = py // CELL
+            cc = px // CELL
 
             if not (0 <= cr < rows and 0 <= cc < cols):
                 return False
@@ -57,6 +65,7 @@ class Player:
         return True
 
     def draw(self, screen):
+
         pygame.draw.ellipse(
             screen,
             self.color,
@@ -70,7 +79,8 @@ class Enemy:
 
         self.r, self.c = r, c
 
-        cx, cy = c * CELL + CELL // 2, r * CELL + CELL // 2
+        cx = c * CELL + CELL // 2
+        cy = r * CELL + CELL // 2
 
         self.rect = pygame.Rect(
             cx - 12,
@@ -81,17 +91,28 @@ class Enemy:
 
         self.color = (220, 60, 60)
 
-        # Enemy movement interval.
-        # This will be reduced by the difficulty ramp.
+        # Difficulty ramp
+        self.timer = 0
         self.move_interval = 20
 
-        self.timer = 0
+        # Power pellet
+        self.frozen = False
 
     def update(self, walls, player, rows, cols):
 
+        # -----------------------------------------
+        # Frozen enemy does nothing
+        # -----------------------------------------
+
+        if self.frozen:
+            return
+
         from game.maze import bfs
 
-        # BFS is calculated independently for every update
+        # -----------------------------------------
+        # BFS is calculated on every update
+        # -----------------------------------------
+
         pr = player.rect.centery // CELL
         pc = player.rect.centerx // CELL
 
@@ -103,8 +124,10 @@ class Enemy:
             cols
         )
 
-        # Keep the movement interval so the difficulty
-        # ramp can modify enemy movement speed.
+        # -----------------------------------------
+        # Movement interval
+        # -----------------------------------------
+
         self.timer += 1
 
         if self.timer >= self.move_interval:
@@ -121,13 +144,22 @@ class Enemy:
                 cx = self.c * CELL + CELL // 2
                 cy = self.r * CELL + CELL // 2
 
-                self.rect.center = (cx, cy)
+                self.rect.center = (
+                    cx,
+                    cy
+                )
 
     def draw(self, screen):
 
+        # Frozen enemies are blue
+        if self.frozen:
+            color = (80, 170, 255)
+        else:
+            color = self.color
+
         pygame.draw.rect(
             screen,
-            self.color,
+            color,
             self.rect,
             border_radius=5
         )
@@ -150,4 +182,31 @@ class Enemy:
                 (0, 0, 0),
                 (ex + 1, self.rect.y + 8),
                 2
+            )
+
+        # -----------------------------------------
+        # Frozen indicator
+        # -----------------------------------------
+
+        if self.frozen:
+
+            font = pygame.font.SysFont(
+                "monospace",
+                11,
+                bold=True
+            )
+
+            text = font.render(
+                "FROZEN",
+                True,
+                (0, 70, 150)
+            )
+
+            screen.blit(
+                text,
+                (
+                    self.rect.centerx
+                    - text.get_width() // 2,
+                    self.rect.top - 15
+                )
             )

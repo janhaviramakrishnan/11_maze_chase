@@ -48,23 +48,61 @@ class GameEngine:
             ROWS
         )
 
+        # -----------------------------------------
         # Player
+        # -----------------------------------------
+
         self.player = Player(0, 0)
 
-        # Three independent enemies
+        # -----------------------------------------
+        # Three enemies
+        # -----------------------------------------
+
         self.enemies = [
-            Enemy(ROWS - 1, COLS - 1),  # Bottom-right
-            Enemy(ROWS - 1, 0),          # Bottom-left
-            Enemy(0, COLS - 1)           # Top-right
+            Enemy(ROWS - 1, COLS - 1),
+            Enemy(ROWS - 1, 0),
+            Enemy(0, COLS - 1)
         ]
 
+        # -----------------------------------------
         # Exit
+        # -----------------------------------------
+
         self.exit_rect = pygame.Rect(
             (COLS // 2) * CELL + 5,
             (ROWS // 2) * CELL + 5,
             CELL - 10,
             CELL - 10
         )
+
+        # -----------------------------------------
+        # POWER PELLET
+        # -----------------------------------------
+        #
+        # IMPORTANT:
+        # Put it somewhere different from EXIT.
+        #
+        # This is row 5, column 2.
+        #
+
+        pellet_row = 5
+        pellet_col = 2
+
+        self.pellet_rect = pygame.Rect(
+            pellet_col * CELL + CELL // 2 - 8,
+            pellet_row * CELL + CELL // 2 - 8,
+            16,
+            16
+        )
+
+        self.pellet_active = True
+
+        # 300-frame freeze timer
+        self.freeze_timer = 0
+
+        # -----------------------------------------
+        # Game state
+        # -----------------------------------------
 
         self.caught = False
         self.won = False
@@ -73,13 +111,10 @@ class GameEngine:
         # Difficulty ramp
         # -----------------------------------------
 
-        # Time at which the game started/restarted
         self.start_time = pygame.time.get_ticks()
 
-        # Current difficulty tier
         self.speed_tier = 1
 
-        # Initial enemy movement interval
         self.enemy_move_interval = 20
 
     def handle_events(self):
@@ -96,58 +131,106 @@ class GameEngine:
 
         return True
 
+    # =================================================
+    # DIFFICULTY RAMP
+    # =================================================
+
     def update_difficulty(self):
 
-        # Current elapsed time in milliseconds
         elapsed_time = (
             pygame.time.get_ticks()
             - self.start_time
         )
 
-        # Number of complete 15-second periods
+        # Every 15 seconds
         elapsed_periods = elapsed_time // 15000
 
-        # Starting interval is 20.
         # Reduce by 2 every 15 seconds.
+        # Minimum = 5.
         new_interval = max(
             5,
-            20 - (elapsed_periods * 2)
+            20 - elapsed_periods * 2
         )
 
-        # Speed tier:
-        # Tier 1 = 20
-        # Tier 2 = 18
-        # Tier 3 = 16
-        # ...
-        # Tier 8 = 6
-        # Tier 9+ = 5
         new_speed_tier = (
             (20 - new_interval) // 2
         ) + 1
 
-        # Only update if the difficulty changed
         if new_interval != self.enemy_move_interval:
 
             self.enemy_move_interval = new_interval
+
             self.speed_tier = new_speed_tier
 
-            # Apply the new interval to every enemy
             for enemy in self.enemies:
 
                 enemy.move_interval = (
                     self.enemy_move_interval
                 )
 
+    # =================================================
+    # POWER PELLET
+    # =================================================
+
+    def update_power_pellet(self):
+
+        # -----------------------------------------
+        # Player collects pellet
+        # -----------------------------------------
+
+        if (
+            self.pellet_active
+            and self.player.rect.colliderect(
+                self.pellet_rect
+            )
+        ):
+
+            print("POWER PELLET COLLECTED!")
+
+            # Remove pellet
+            self.pellet_active = False
+
+            # Start 300-frame countdown
+            self.freeze_timer = 300
+
+            # Freeze ALL enemies
+            for enemy in self.enemies:
+
+                enemy.frozen = True
+
+        # -----------------------------------------
+        # Freeze countdown
+        # -----------------------------------------
+
+        if self.freeze_timer > 0:
+
+            self.freeze_timer -= 1
+
+            # Countdown finished
+            if self.freeze_timer <= 0:
+
+                self.freeze_timer = 0
+
+                for enemy in self.enemies:
+
+                    enemy.frozen = False
+
+                print("ENEMIES UNFROZEN!")
+
+    # =================================================
+    # UPDATE
+    # =================================================
+
     def update(self):
 
         if self.caught or self.won:
             return
 
-        # Update difficulty based on elapsed time
+        # Difficulty
         self.update_difficulty()
 
         # -----------------------------------------
-        # Player movement
+        # Player
         # -----------------------------------------
 
         keys = pygame.key.get_pressed()
@@ -160,13 +243,17 @@ class GameEngine:
         )
 
         # -----------------------------------------
-        # Enemy movement
+        # Power pellet
+        # -----------------------------------------
+
+        self.update_power_pellet()
+
+        # -----------------------------------------
+        # Enemies
         # -----------------------------------------
 
         for enemy in self.enemies:
 
-            # Each enemy independently calls BFS
-            # on every update.
             enemy.update(
                 self.walls,
                 self.player,
@@ -174,20 +261,29 @@ class GameEngine:
                 COLS
             )
 
-            # Check collision
-            if self.player.rect.colliderect(
-                enemy.rect
+            # Frozen enemies cannot catch player
+            if (
+                not enemy.frozen
+                and self.player.rect.colliderect(
+                    enemy.rect
+                )
             ):
+
                 self.caught = True
 
         # -----------------------------------------
-        # Exit condition
+        # Exit
         # -----------------------------------------
 
         if self.player.rect.colliderect(
             self.exit_rect
         ):
+
             self.won = True
+
+    # =================================================
+    # DRAW
+    # =================================================
 
     def draw(self):
 
@@ -198,7 +294,7 @@ class GameEngine:
         wall_color = (50, 40, 60)
 
         # -----------------------------------------
-        # Draw maze
+        # Maze
         # -----------------------------------------
 
         for r in range(ROWS):
@@ -210,7 +306,6 @@ class GameEngine:
 
                 w = self.walls[r][c]
 
-                # Top
                 if w[0]:
 
                     pygame.draw.line(
@@ -221,7 +316,6 @@ class GameEngine:
                         3
                     )
 
-                # Bottom
                 if w[1]:
 
                     pygame.draw.line(
@@ -232,7 +326,6 @@ class GameEngine:
                         3
                     )
 
-                # Right
                 if w[2]:
 
                     pygame.draw.line(
@@ -243,7 +336,6 @@ class GameEngine:
                         3
                     )
 
-                # Left
                 if w[3]:
 
                     pygame.draw.line(
@@ -255,7 +347,7 @@ class GameEngine:
                     )
 
         # -----------------------------------------
-        # Draw exit
+        # EXIT
         # -----------------------------------------
 
         pygame.draw.rect(
@@ -280,7 +372,20 @@ class GameEngine:
         )
 
         # -----------------------------------------
-        # Draw player
+        # POWER PELLET
+        # -----------------------------------------
+
+        if self.pellet_active:
+
+            pygame.draw.circle(
+                self.screen,
+                (255, 220, 0),
+                self.pellet_rect.center,
+                8
+            )
+
+        # -----------------------------------------
+        # PLAYER
         # -----------------------------------------
 
         self.player.draw(
@@ -288,7 +393,7 @@ class GameEngine:
         )
 
         # -----------------------------------------
-        # Draw enemies
+        # ENEMIES
         # -----------------------------------------
 
         for enemy in self.enemies:
@@ -314,10 +419,12 @@ class GameEngine:
             hud
         )
 
-        # Current enemy interval
+        # Speed tier
         speed_text = (
-            f"Enemy Speed: Tier {self.speed_tier} "
-            f"(Interval: {self.enemy_move_interval})"
+            f"Enemy Speed: Tier "
+            f"{self.speed_tier} "
+            f"(Interval: "
+            f"{self.enemy_move_interval})"
         )
 
         speed_label = self.font.render(
@@ -328,10 +435,53 @@ class GameEngine:
 
         self.screen.blit(
             speed_label,
-            (8, ROWS * CELL + 5)
+            (
+                8,
+                ROWS * CELL + 4
+            )
         )
 
-        # Restart instruction
+        # Freeze status
+        if self.freeze_timer > 0:
+
+            freeze_text = (
+                f"FROZEN: "
+                f"{self.freeze_timer} frames"
+            )
+
+            freeze_label = self.font.render(
+                freeze_text,
+                True,
+                (100, 200, 255)
+            )
+
+            self.screen.blit(
+                freeze_label,
+                (
+                    8,
+                    ROWS * CELL + 27
+                )
+            )
+
+        else:
+
+            freeze_label = self.font.render(
+                "Power Pellet: Available"
+                if self.pellet_active
+                else "Power Pellet: Used",
+                True,
+                (200, 200, 200)
+            )
+
+            self.screen.blit(
+                freeze_label,
+                (
+                    8,
+                    ROWS * CELL + 27
+                )
+            )
+
+        # Restart
         restart_label = self.font.render(
             "R = Restart",
             True,
@@ -341,13 +491,15 @@ class GameEngine:
         self.screen.blit(
             restart_label,
             (
-                WIDTH - restart_label.get_width() - 8,
-                ROWS * CELL + 5
+                WIDTH
+                - restart_label.get_width()
+                - 8,
+                ROWS * CELL + 27
             )
         )
 
         # -----------------------------------------
-        # Game-over overlay
+        # GAME OVER
         # -----------------------------------------
 
         if self.caught:
@@ -365,6 +517,10 @@ class GameEngine:
             )
 
         pygame.display.flip()
+
+    # =================================================
+    # OVERLAY
+    # =================================================
 
     def _overlay(self, text, color):
 
@@ -415,6 +571,10 @@ class GameEngine:
             )
         )
 
+    # =================================================
+    # RUN
+    # =================================================
+
     def run(self):
 
         running = True
@@ -430,4 +590,3 @@ class GameEngine:
             self.clock.tick(FPS)
 
         pygame.quit()
-        
