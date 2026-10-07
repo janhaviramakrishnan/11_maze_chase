@@ -57,30 +57,44 @@ class Player:
         return True
 
     def draw(self, screen):
-        pygame.draw.ellipse(screen, self.color, self.rect)
+        pygame.draw.ellipse(
+            screen,
+            self.color,
+            self.rect
+        )
 
 
 class Enemy:
 
     def __init__(self, r, c):
+
         self.r, self.c = r, c
 
         cx, cy = c * CELL + CELL // 2, r * CELL + CELL // 2
-        self.rect = pygame.Rect(cx - 12, cy - 12, 24, 24)
+
+        self.rect = pygame.Rect(
+            cx - 12,
+            cy - 12,
+            24,
+            24
+        )
 
         self.color = (220, 60, 60)
+
+        # Enemy movement interval.
+        # This will be reduced by the difficulty ramp.
+        self.move_interval = 20
+
+        self.timer = 0
 
     def update(self, walls, player, rows, cols):
 
         from game.maze import bfs
 
-        # Get the player's current maze cell
-        pr, pc = (
-            player.rect.centery // CELL,
-            player.rect.centerx // CELL
-        )
+        # BFS is calculated independently for every update
+        pr = player.rect.centery // CELL
+        pc = player.rect.centerx // CELL
 
-        # Calculate a fresh BFS path on every update
         step = bfs(
             walls,
             (self.r, self.c),
@@ -89,18 +103,25 @@ class Enemy:
             cols
         )
 
-        # Move one cell along the BFS path
-        if step:
+        # Keep the movement interval so the difficulty
+        # ramp can modify enemy movement speed.
+        self.timer += 1
 
-            dr, dc = step
+        if self.timer >= self.move_interval:
 
-            self.r += dr
-            self.c += dc
+            self.timer = 0
 
-            cx = self.c * CELL + CELL // 2
-            cy = self.r * CELL + CELL // 2
+            if step:
 
-            self.rect.center = (cx, cy)
+                dr, dc = step
+
+                self.r += dr
+                self.c += dc
+
+                cx = self.c * CELL + CELL // 2
+                cy = self.r * CELL + CELL // 2
+
+                self.rect.center = (cx, cy)
 
     def draw(self, screen):
 
@@ -112,7 +133,10 @@ class Enemy:
         )
 
         # Eyes
-        for ex in [self.rect.x + 4, self.rect.x + 14]:
+        for ex in [
+            self.rect.x + 4,
+            self.rect.x + 14
+        ]:
 
             pygame.draw.circle(
                 screen,
